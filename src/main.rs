@@ -38,18 +38,18 @@ fn set_cleanup_on_exit(config: &config::Configuration) {
     let default_hook = panic::take_hook();
     panic::set_hook(Box::new(move |panic_info| {
         default_hook(panic_info);
-        cleanup(&cfg);
+        shutoff_all_valves(&cfg);
         process::exit(1);
     }));
 
     let cfg = config.clone();
     let _ = ctrlc::set_handler(move || {
-        cleanup(&cfg);
+        shutoff_all_valves(&cfg);
         process::exit(0);
     });
 }
 
-fn cleanup(config: &config::Configuration) {
+fn shutoff_all_valves(config: &config::Configuration) {
     set_pin(config.pump.pin, false);
     for zone in &config.zones {
         set_pin(zone.pin, false);
@@ -123,7 +123,7 @@ async fn handle_stop_plan(
     if let Some(handle) = current_task_handle {
         println!("Stopping sprinklers");
         handle.abort();
-        cleanup(&config);
+        shutoff_all_valves(&config);
         *current_task_handle = None;
     } else {
         println!("No ongoing sprinklers task to stop.");
