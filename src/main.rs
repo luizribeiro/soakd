@@ -150,6 +150,7 @@ async fn start_plan(config: &Configuration, pump_config: &Arc<PumpConfig>, plan:
             zone_duration.duration.into(),
         )
         .await;
+        println!("Done watering zone {}", zone_config.zone);
     }
 }
 
