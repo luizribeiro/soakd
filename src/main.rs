@@ -74,16 +74,26 @@ fn read_config<P: AsRef<Path>>(path: P) -> Result<Configuration, SprinklerError>
     Ok(config)
 }
 
+fn set_pin(pin: u8, state: bool) {
+    println!("Setting pin {} to {}", pin, state);
+    /*
+    let mut device = OutputDevice::new(pin.into());
+    if state {
+        device.on();
+    } else {
+        device.off();
+    }
+    */
+}
+
 async fn activate_zone(pump_config: Arc<PumpConfig>, zone: ZoneConfig, duration: u64) {
-    let mut output_device = OutputDevice::new(zone.pin.into());
-    let mut pump_device = OutputDevice::new(pump_config.pin.into());
-    output_device.on();
+    set_pin(zone.pin, true);
     tokio::time::sleep(Duration::from_secs(pump_config.delay)).await;
-    pump_device.on();
-    tokio::time::sleep(Duration::from_secs(duration * 60 - 2 * pump_config.delay)).await;
-    pump_device.off();
+    set_pin(pump_config.pin, true);
+    tokio::time::sleep(Duration::from_secs(duration - 2 * pump_config.delay)).await;
+    set_pin(pump_config.pin, false);
     tokio::time::sleep(Duration::from_secs(pump_config.delay)).await;
-    output_device.off();
+    set_pin(zone.pin, false);
 }
 
 fn set_cleanup_on_exit(config: &Configuration) {
@@ -97,11 +107,9 @@ fn set_cleanup_on_exit(config: &Configuration) {
 }
 
 fn cleanup(config: &Configuration) {
-    let mut pump_device = OutputDevice::new(config.pump.pin.into());
-    pump_device.off();
+    set_pin(config.pump.pin, false);
     for zone in &config.zones {
-        let mut output_device = OutputDevice::new(zone.pin.into());
-        output_device.off();
+        set_pin(zone.pin, false);
     }
 }
 
