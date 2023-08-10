@@ -2,7 +2,7 @@ use futures::future::abortable;
 use futures::StreamExt;
 use paho_mqtt as mqtt;
 use serde::{Deserialize, Serialize};
-use std::{panic, process, sync::Arc, time::Duration};
+use std::{panic, process, time::Duration};
 
 mod config;
 mod err;
@@ -24,11 +24,7 @@ fn set_pin(pin: u8, state: bool) {
     */
 }
 
-async fn activate_zone(
-    pump_config: Arc<config::PumpConfig>,
-    zone: config::ZoneConfig,
-    duration: u64,
-) {
+async fn activate_zone(pump_config: &config::PumpConfig, zone: config::ZoneConfig, duration: u64) {
     set_pin(zone.pin, true);
     tokio::time::sleep(Duration::from_secs(pump_config.delay)).await;
     set_pin(pump_config.pin, true);
@@ -77,11 +73,8 @@ async fn start_mqtt_client(
     Ok(client)
 }
 
-async fn start_plan(
-    config: &config::Configuration,
-    pump_config: &Arc<config::PumpConfig>,
-    plan: &config::SprinklerPlan,
-) {
+async fn start_plan(config: &config::Configuration, plan: &config::SprinklerPlan) {
+    let pump_config = config.pump.clone();
     for zone_duration in &plan.zone_durations {
         let zone_config = config
             .zones
@@ -93,7 +86,7 @@ async fn start_plan(
             zone_config.zone, zone_duration.duration
         );
         activate_zone(
-            pump_config.clone(),
+            &pump_config,
             zone_config.clone(),
             zone_duration.duration.into(),
         )
@@ -110,8 +103,6 @@ async fn main() {
     });
 
     set_cleanup_on_exit(&config);
-
-    let pump_config = Arc::new(config.pump);
 
     let mut mqtt_client = start_mqtt_client(&config).await.unwrap_or_else(|e| {
         println!("Error creating the client: {:?}", e);
@@ -138,10 +129,9 @@ async fn main() {
 
                 if let Some(plan) = plan {
                     let config = config.clone();
-                    let pump_config = pump_config.clone();
                     let plan = plan.clone();
                     let (task, handle) = abortable(async move {
-                        start_plan(&config, &pump_config, &plan).await;
+                        start_plan(&config, &plan).await;
                     });
                     tokio::spawn(task);
                     current_task_handle = Some(handle);
@@ -152,12 +142,7 @@ async fn main() {
                 let zone_number: u8 = payload_str.parse().unwrap();
                 let zone_config = config.zones.iter().find(|z| z.zone == zone_number).unwrap();
                 let payload: WaterZonePayload = serde_json::from_str(&payload_str).unwrap();
-                activate_zone(
-                    pump_config.clone(),
-                    zone_config.clone(),
-                    payload.duration.into(),
-                )
-                .await;
+                activate_zone(&config.pump, zone_config.clone(), payload.duration.into()).await;
             } else if topic == "sprinklers/stop" {
                 if let Some(handle) = current_task_handle {
                     println!("Force-stopping sprinklers");
