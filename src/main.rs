@@ -1,77 +1,15 @@
 use futures::future::abortable;
 use futures::StreamExt;
 use paho_mqtt as mqtt;
-use rust_gpiozero::*;
 use serde::{Deserialize, Serialize};
-use std::{fs, io::Read, panic, path::Path, process, sync::Arc, time::Duration};
+use std::{panic, process, sync::Arc, time::Duration};
 
-#[derive(Deserialize, Clone)]
-struct Configuration {
-    mqtt: MQTTConfig,
-    pump: PumpConfig,
-    zones: Vec<ZoneConfig>,
-    plans: Vec<SprinklerPlan>,
-}
-
-#[derive(Deserialize, Clone)]
-struct MQTTConfig {
-    broker: String,
-    port: u16,
-}
-
-#[derive(Deserialize, Clone, Copy)]
-struct PumpConfig {
-    pin: u8,
-    delay: u64,
-}
-
-#[derive(Deserialize, Clone)]
-struct ZoneConfig {
-    zone: u8,
-    pin: u8,
-}
-
-#[derive(Deserialize, Clone)]
-struct SprinklerPlan {
-    name: String,
-    zone_durations: Vec<SprinklerZone>,
-}
-
-#[derive(Deserialize, Clone)]
-struct SprinklerZone {
-    zone: u8,
-    duration: u16,
-}
+mod config;
+mod err;
 
 #[derive(Serialize, Deserialize, Clone)]
-struct WaterZonePayload {
+pub struct WaterZonePayload {
     duration: u16,
-}
-
-#[derive(Debug)]
-enum SprinklerError {
-    YAML(serde_yaml::Error),
-    IO(std::io::Error),
-}
-
-impl From<serde_yaml::Error> for SprinklerError {
-    fn from(error: serde_yaml::Error) -> Self {
-        SprinklerError::YAML(error)
-    }
-}
-
-impl From<std::io::Error> for SprinklerError {
-    fn from(error: std::io::Error) -> Self {
-        SprinklerError::IO(error)
-    }
-}
-
-fn read_config<P: AsRef<Path>>(path: P) -> Result<Configuration, SprinklerError> {
-    let mut file = fs::File::open(path)?;
-    let mut contents = String::new();
-    file.read_to_string(&mut contents)?;
-    let config = serde_yaml::from_str(&contents)?;
-    Ok(config)
 }
 
 fn set_pin(pin: u8, state: bool) {
@@ -86,7 +24,11 @@ fn set_pin(pin: u8, state: bool) {
     */
 }
 
-async fn activate_zone(pump_config: Arc<PumpConfig>, zone: ZoneConfig, duration: u64) {
+async fn activate_zone(
+    pump_config: Arc<config::PumpConfig>,
+    zone: config::ZoneConfig,
+    duration: u64,
+) {
     set_pin(zone.pin, true);
     tokio::time::sleep(Duration::from_secs(pump_config.delay)).await;
     set_pin(pump_config.pin, true);
@@ -96,7 +38,7 @@ async fn activate_zone(pump_config: Arc<PumpConfig>, zone: ZoneConfig, duration:
     set_pin(zone.pin, false);
 }
 
-fn set_cleanup_on_exit(config: &Configuration) {
+fn set_cleanup_on_exit(config: &config::Configuration) {
     let config = config.clone();
     let default_hook = panic::take_hook();
     panic::set_hook(Box::new(move |panic_info| {
@@ -106,14 +48,16 @@ fn set_cleanup_on_exit(config: &Configuration) {
     }));
 }
 
-fn cleanup(config: &Configuration) {
+fn cleanup(config: &config::Configuration) {
     set_pin(config.pump.pin, false);
     for zone in &config.zones {
         set_pin(zone.pin, false);
     }
 }
 
-async fn start_mqtt_client(config: &Configuration) -> Result<mqtt::AsyncClient, std::io::Error> {
+async fn start_mqtt_client(
+    config: &config::Configuration,
+) -> Result<mqtt::AsyncClient, std::io::Error> {
     let create_opts = mqtt::CreateOptionsBuilder::new()
         .server_uri(format!("tcp://{}:{}", config.mqtt.broker, config.mqtt.port))
         .client_id("sprinkler_controller")
@@ -133,7 +77,11 @@ async fn start_mqtt_client(config: &Configuration) -> Result<mqtt::AsyncClient, 
     Ok(client)
 }
 
-async fn start_plan(config: &Configuration, pump_config: &Arc<PumpConfig>, plan: &SprinklerPlan) {
+async fn start_plan(
+    config: &config::Configuration,
+    pump_config: &Arc<config::PumpConfig>,
+    plan: &config::SprinklerPlan,
+) {
     for zone_duration in &plan.zone_durations {
         let zone_config = config
             .zones
@@ -156,7 +104,7 @@ async fn start_plan(config: &Configuration, pump_config: &Arc<PumpConfig>, plan:
 
 #[tokio::main]
 async fn main() {
-    let config = read_config("config.yaml").unwrap_or_else(|e| {
+    let config = config::read_config("config.yaml").unwrap_or_else(|e| {
         println!("Error reading config: {:?}", e);
         process::exit(1);
     });
