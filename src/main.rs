@@ -1,3 +1,4 @@
+use futures::future::abortable;
 use futures::StreamExt;
 use paho_mqtt as mqtt;
 use rust_gpiozero::*;
@@ -161,16 +162,30 @@ async fn main() {
     });
     let mut stream = mqtt_client.get_stream(25);
 
+    let mut current_task_handle = None;
+
     while let Some(msg_opt) = stream.next().await {
         if let Some(message) = msg_opt {
             let topic = message.topic();
             let payload_str = message.payload_str();
 
+            println!("Received message: {} -> {}", topic, payload_str);
+
             if topic.starts_with("sprinklers/start_plan/") {
+                if current_task_handle.is_some() {
+                    println!("Already have an ongoing sprinklers task. Ignoring.");
+                }
+
                 let plan_name = &topic["sprinklers/start_plan/".len()..];
                 let plan = config.plans.iter().find(|p| p.name == plan_name);
+
                 if let Some(plan) = plan {
                     start_plan(&config, pump_config.clone(), plan).await;
+                    let (task, handle) = abortable(async {
+                        tokio::time::sleep(Duration::from_secs(60 * 60)).await;
+                    });
+                    tokio::spawn(task);
+                    current_task_handle = Some(handle);
                 } else {
                     println!("Unknown plan: {}", plan_name);
                 }
@@ -185,7 +200,14 @@ async fn main() {
                 )
                 .await;
             } else if topic == "sprinklers/stop" {
-                cleanup(&config);
+                if let Some(handle) = current_task_handle {
+                    println!("Force-stopping sprinklers");
+                    handle.abort();
+                    cleanup(&config);
+                    current_task_handle = None;
+                } else {
+                    println!("No ongoing sprinklers task to stop.");
+                }
             }
         }
     }
