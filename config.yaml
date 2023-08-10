@@ -1,0 +1,24 @@
+mqtt:
+  broker: "localhost"
+  port: 1883
+pump:
+  pin: 10
+  delay: 5
+zones:
+  - zone: 1
+    pin: 11
+  - zone: 2
+    pin: 12
+plans:
+  - name: "Morning Watering"
+    zone_durations:
+      - zone: 1
+        duration: 30
+      - zone: 2
+        duration: 45
+  - name: "Evening Watering"
+    zone_durations:
+      - zone: 1
+        duration: 20
+      - zone: 2
+        duration: 35
