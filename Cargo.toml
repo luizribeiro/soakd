@@ -1,5 +1,5 @@
 [package]
-name = "sprinklers"
+name = "soakd"
 version = "0.1.0"
 edition = "2021"
 
