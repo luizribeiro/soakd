@@ -1,4 +1,4 @@
-use futures::future::abortable;
+use futures::{future::abortable, stream::AbortHandle};
 use serde::{Deserialize, Serialize};
 use std::{panic, process, time::Duration};
 
@@ -72,6 +72,64 @@ async fn start_plan(config: &config::Configuration, plan: &config::SprinklerPlan
     }
 }
 
+async fn handle_start_plan(
+    current_task_handle: &mut Option<AbortHandle>,
+    config: &config::Configuration,
+    topic: &str,
+    _payload: &str,
+) {
+    if current_task_handle.is_some() {
+        println!("Already have an ongoing sprinklers task. Ignoring.");
+    }
+
+    let plan_name = &topic["sprinklers/start_plan/".len()..];
+    let plan = config.plans.iter().find(|p| p.name == plan_name);
+
+    if let Some(plan) = plan {
+        let config = config.clone();
+        let plan = plan.clone();
+        let (task, handle) = abortable(async move {
+            start_plan(&config, &plan).await;
+        });
+        tokio::spawn(task);
+        *current_task_handle = Some(handle);
+    } else {
+        println!("Unknown plan: {}", plan_name);
+    }
+}
+
+async fn handle_water_zone(
+    current_task_handle: &mut Option<AbortHandle>,
+    config: &config::Configuration,
+    _topic: &str,
+    payload: &str,
+) {
+    if current_task_handle.is_some() {
+        println!("Already have an ongoing sprinklers task. Ignoring.");
+    }
+
+    let zone_number: u8 = payload.parse().unwrap();
+    let zone_config = config.zones.iter().find(|z| z.zone == zone_number).unwrap();
+    let payload: WaterZonePayload = serde_json::from_str(&payload).unwrap();
+    activate_zone(&config.pump, &zone_config, payload.duration.into()).await;
+}
+
+async fn handle_stop_plan(
+    current_task_handle: &mut Option<AbortHandle>,
+    config: &config::Configuration,
+    _topic: &str,
+    _payload: &str,
+) {
+    if let Some(handle) = current_task_handle {
+        println!("Stopping sprinklers");
+        handle.abort();
+        cleanup(&config);
+        *current_task_handle = None;
+    } else {
+        println!("No ongoing sprinklers task to stop.");
+    }
+}
+
 #[tokio::main]
 async fn main() {
     // TODO: better error handling on this entire method
@@ -93,39 +151,17 @@ async fn main() {
 
         println!("Received message: {} -> {}", topic, payload_str);
 
-        if topic.starts_with("sprinklers/start_plan/") {
-            if current_task_handle.is_some() {
-                println!("Already have an ongoing sprinklers task. Ignoring.");
+        match topic {
+            t if t.starts_with("sprinklers/start_plan/") => {
+                handle_start_plan(&mut current_task_handle, &config, &topic, &payload_str).await
             }
-
-            let plan_name = &topic["sprinklers/start_plan/".len()..];
-            let plan = config.plans.iter().find(|p| p.name == plan_name);
-
-            if let Some(plan) = plan {
-                let config = config.clone();
-                let plan = plan.clone();
-                let (task, handle) = abortable(async move {
-                    start_plan(&config, &plan).await;
-                });
-                tokio::spawn(task);
-                current_task_handle = Some(handle);
-            } else {
-                println!("Unknown plan: {}", plan_name);
+            t if t.starts_with("sprinklers/water_zone/") => {
+                handle_water_zone(&mut current_task_handle, &config, topic, &payload_str).await
             }
-        } else if topic.starts_with("sprinklers/water_zone/") {
-            let zone_number: u8 = payload_str.parse().unwrap();
-            let zone_config = config.zones.iter().find(|z| z.zone == zone_number).unwrap();
-            let payload: WaterZonePayload = serde_json::from_str(&payload_str).unwrap();
-            activate_zone(&config.pump, &zone_config, payload.duration.into()).await;
-        } else if topic == "sprinklers/stop" {
-            if let Some(handle) = current_task_handle {
-                println!("Force-stopping sprinklers");
-                handle.abort();
-                cleanup(&config);
-                current_task_handle = None;
-            } else {
-                println!("No ongoing sprinklers task to stop.");
+            "sprinklers/stop" => {
+                handle_stop_plan(&mut current_task_handle, &config, &topic, &payload_str).await
             }
+            _ => {}
         }
     }
 }
