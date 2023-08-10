@@ -24,7 +24,7 @@ fn set_pin(pin: u8, state: bool) {
     */
 }
 
-async fn activate_zone(pump_config: &config::PumpConfig, zone: config::ZoneConfig, duration: u64) {
+async fn activate_zone(pump_config: &config::PumpConfig, zone: &config::ZoneConfig, duration: u64) {
     set_pin(zone.pin, true);
     tokio::time::sleep(Duration::from_secs(pump_config.delay)).await;
     set_pin(pump_config.pin, true);
@@ -74,7 +74,6 @@ async fn start_mqtt_client(
 }
 
 async fn start_plan(config: &config::Configuration, plan: &config::SprinklerPlan) {
-    let pump_config = config.pump.clone();
     for zone_duration in &plan.zone_durations {
         let zone_config = config
             .zones
@@ -85,12 +84,7 @@ async fn start_plan(config: &config::Configuration, plan: &config::SprinklerPlan
             "Activating zone {} for {} minutes",
             zone_config.zone, zone_duration.duration
         );
-        activate_zone(
-            &pump_config,
-            zone_config.clone(),
-            zone_duration.duration.into(),
-        )
-        .await;
+        activate_zone(&config.pump, &zone_config, zone_duration.duration.into()).await;
         println!("Done watering zone {}", zone_config.zone);
     }
 }
@@ -142,7 +136,7 @@ async fn main() {
                 let zone_number: u8 = payload_str.parse().unwrap();
                 let zone_config = config.zones.iter().find(|z| z.zone == zone_number).unwrap();
                 let payload: WaterZonePayload = serde_json::from_str(&payload_str).unwrap();
-                activate_zone(&config.pump, zone_config.clone(), payload.duration.into()).await;
+                activate_zone(&config.pump, &zone_config, payload.duration.into()).await;
             } else if topic == "sprinklers/stop" {
                 if let Some(handle) = current_task_handle {
                     println!("Force-stopping sprinklers");
