@@ -11,3 +11,4 @@ rust_gpiozero = "0.2"
 paho-mqtt = { version = "0.12", default-features = false, features = ["ssl"]}
 tokio = { version = "1", features = ["full"] }
 futures = "0.3.28"
+ctrlc = { version = "3.4.0", features = ["termination"] }

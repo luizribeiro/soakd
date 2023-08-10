@@ -34,13 +34,19 @@ async fn activate_zone(pump_config: &config::PumpConfig, zone: &config::ZoneConf
 }
 
 fn set_cleanup_on_exit(config: &config::Configuration) {
-    let config = config.clone();
+    let cfg = config.clone();
     let default_hook = panic::take_hook();
     panic::set_hook(Box::new(move |panic_info| {
         default_hook(panic_info);
-        cleanup(&config);
+        cleanup(&cfg);
         process::exit(1);
     }));
+
+    let cfg = config.clone();
+    let _ = ctrlc::set_handler(move || {
+        cleanup(&cfg);
+        process::exit(0);
+    });
 }
 
 fn cleanup(config: &config::Configuration) {
