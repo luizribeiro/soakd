@@ -28,7 +28,7 @@ async fn activate_zone(pump_config: &config::PumpConfig, zone: config::ZoneConfi
     set_pin(zone.pin, true);
     tokio::time::sleep(Duration::from_secs(pump_config.delay)).await;
     set_pin(pump_config.pin, true);
-    tokio::time::sleep(Duration::from_secs(duration - 2 * pump_config.delay)).await;
+    tokio::time::sleep(Duration::from_secs(duration * 60 - 2 * pump_config.delay)).await;
     set_pin(pump_config.pin, false);
     tokio::time::sleep(Duration::from_secs(pump_config.delay)).await;
     set_pin(zone.pin, false);
