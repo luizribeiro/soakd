@@ -1,11 +1,10 @@
 use futures::future::abortable;
-use futures::StreamExt;
-use paho_mqtt as mqtt;
 use serde::{Deserialize, Serialize};
 use std::{panic, process, time::Duration};
 
 mod config;
 mod err;
+mod mqtt;
 
 #[derive(Serialize, Deserialize, Clone)]
 pub struct WaterZonePayload {
@@ -51,28 +50,6 @@ fn cleanup(config: &config::Configuration) {
     }
 }
 
-async fn start_mqtt_client(
-    config: &config::Configuration,
-) -> Result<mqtt::AsyncClient, std::io::Error> {
-    let create_opts = mqtt::CreateOptionsBuilder::new()
-        .server_uri(format!("tcp://{}:{}", config.mqtt.broker, config.mqtt.port))
-        .client_id("sprinkler_controller")
-        .finalize();
-
-    let client = mqtt::AsyncClient::new(create_opts)?;
-
-    let conn_opts = mqtt::ConnectOptionsBuilder::new()
-        .keep_alive_interval(Duration::from_secs(20))
-        .clean_session(true)
-        .finalize();
-
-    client.connect(conn_opts).await?;
-
-    client.subscribe("sprinklers/#", 1).await?;
-
-    Ok(client)
-}
-
 async fn start_plan(config: &config::Configuration, plan: &config::SprinklerPlan) {
     for zone_duration in &plan.zone_durations {
         let zone_config = config
@@ -91,6 +68,7 @@ async fn start_plan(config: &config::Configuration, plan: &config::SprinklerPlan
 
 #[tokio::main]
 async fn main() {
+    // TODO: better error handling on this entire method
     let config = config::read_config("config.yaml").unwrap_or_else(|e| {
         println!("Error reading config: {:?}", e);
         process::exit(1);
@@ -98,54 +76,49 @@ async fn main() {
 
     set_cleanup_on_exit(&config);
 
-    let mut mqtt_client = start_mqtt_client(&config).await.unwrap_or_else(|e| {
-        println!("Error creating the client: {:?}", e);
-        process::exit(1);
-    });
-    let mut stream = mqtt_client.get_stream(25);
+    let mut mqtt_client = mqtt::MQTTClient::new(&config).await.unwrap();
 
     let mut current_task_handle = None;
 
-    while let Some(msg_opt) = stream.next().await {
-        if let Some(message) = msg_opt {
-            let topic = message.topic();
-            let payload_str = message.payload_str();
+    loop {
+        let message = mqtt_client.next().await.unwrap();
+        let topic = message.topic();
+        let payload_str = message.payload_str();
 
-            println!("Received message: {} -> {}", topic, payload_str);
+        println!("Received message: {} -> {}", topic, payload_str);
 
-            if topic.starts_with("sprinklers/start_plan/") {
-                if current_task_handle.is_some() {
-                    println!("Already have an ongoing sprinklers task. Ignoring.");
-                }
+        if topic.starts_with("sprinklers/start_plan/") {
+            if current_task_handle.is_some() {
+                println!("Already have an ongoing sprinklers task. Ignoring.");
+            }
 
-                let plan_name = &topic["sprinklers/start_plan/".len()..];
-                let plan = config.plans.iter().find(|p| p.name == plan_name);
+            let plan_name = &topic["sprinklers/start_plan/".len()..];
+            let plan = config.plans.iter().find(|p| p.name == plan_name);
 
-                if let Some(plan) = plan {
-                    let config = config.clone();
-                    let plan = plan.clone();
-                    let (task, handle) = abortable(async move {
-                        start_plan(&config, &plan).await;
-                    });
-                    tokio::spawn(task);
-                    current_task_handle = Some(handle);
-                } else {
-                    println!("Unknown plan: {}", plan_name);
-                }
-            } else if topic.starts_with("sprinklers/water_zone/") {
-                let zone_number: u8 = payload_str.parse().unwrap();
-                let zone_config = config.zones.iter().find(|z| z.zone == zone_number).unwrap();
-                let payload: WaterZonePayload = serde_json::from_str(&payload_str).unwrap();
-                activate_zone(&config.pump, &zone_config, payload.duration.into()).await;
-            } else if topic == "sprinklers/stop" {
-                if let Some(handle) = current_task_handle {
-                    println!("Force-stopping sprinklers");
-                    handle.abort();
-                    cleanup(&config);
-                    current_task_handle = None;
-                } else {
-                    println!("No ongoing sprinklers task to stop.");
-                }
+            if let Some(plan) = plan {
+                let config = config.clone();
+                let plan = plan.clone();
+                let (task, handle) = abortable(async move {
+                    start_plan(&config, &plan).await;
+                });
+                tokio::spawn(task);
+                current_task_handle = Some(handle);
+            } else {
+                println!("Unknown plan: {}", plan_name);
+            }
+        } else if topic.starts_with("sprinklers/water_zone/") {
+            let zone_number: u8 = payload_str.parse().unwrap();
+            let zone_config = config.zones.iter().find(|z| z.zone == zone_number).unwrap();
+            let payload: WaterZonePayload = serde_json::from_str(&payload_str).unwrap();
+            activate_zone(&config.pump, &zone_config, payload.duration.into()).await;
+        } else if topic == "sprinklers/stop" {
+            if let Some(handle) = current_task_handle {
+                println!("Force-stopping sprinklers");
+                handle.abort();
+                cleanup(&config);
+                current_task_handle = None;
+            } else {
+                println!("No ongoing sprinklers task to stop.");
             }
         }
     }
