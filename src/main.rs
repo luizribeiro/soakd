@@ -133,7 +133,7 @@ async fn start_mqtt_client(config: &Configuration) -> Result<mqtt::AsyncClient, 
     Ok(client)
 }
 
-async fn start_plan(config: &Configuration, pump_config: Arc<PumpConfig>, plan: &SprinklerPlan) {
+async fn start_plan(config: &Configuration, pump_config: &Arc<PumpConfig>, plan: &SprinklerPlan) {
     for zone_duration in &plan.zone_durations {
         let zone_config = config
             .zones
@@ -188,9 +188,11 @@ async fn main() {
                 let plan = config.plans.iter().find(|p| p.name == plan_name);
 
                 if let Some(plan) = plan {
-                    start_plan(&config, pump_config.clone(), plan).await;
-                    let (task, handle) = abortable(async {
-                        tokio::time::sleep(Duration::from_secs(60 * 60)).await;
+                    let config = config.clone();
+                    let pump_config = pump_config.clone();
+                    let plan = plan.clone();
+                    let (task, handle) = abortable(async move {
+                        start_plan(&config, &pump_config, &plan).await;
                     });
                     tokio::spawn(task);
                     current_task_handle = Some(handle);
