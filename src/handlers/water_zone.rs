@@ -1,5 +1,5 @@
-use crate::activate_zone;
 use crate::config;
+use crate::driver;
 use futures::stream::AbortHandle;
 use serde::{Deserialize, Serialize};
 
@@ -21,5 +21,5 @@ pub async fn handle_water_zone(
     let zone_number: u8 = payload.parse().unwrap();
     let zone_config = config.zones.iter().find(|z| z.zone == zone_number).unwrap();
     let payload: WaterZonePayload = serde_json::from_str(&payload).unwrap();
-    activate_zone(&config.pump, &zone_config, payload.duration.into()).await;
+    driver::activate_zone(&config.pump, &zone_config, payload.duration.into()).await;
 }

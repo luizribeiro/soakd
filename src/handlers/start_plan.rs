@@ -1,5 +1,5 @@
-use crate::activate_zone;
 use crate::config;
+use crate::driver;
 use futures::{future::abortable, stream::AbortHandle};
 
 pub async fn handle_start_plan(
@@ -39,7 +39,7 @@ async fn start_plan(config: &config::Configuration, plan: &config::SprinklerPlan
             "Activating zone {} for {} minutes",
             zone_config.zone, zone_duration.duration
         );
-        activate_zone(&config.pump, &zone_config, zone_duration.duration.into()).await;
+        driver::activate_zone(&config.pump, &zone_config, zone_duration.duration.into()).await;
         println!("Done watering zone {}", zone_config.zone);
     }
 }
