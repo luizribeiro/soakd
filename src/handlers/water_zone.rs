@@ -8,7 +8,7 @@ struct WaterZonePayload {
     duration: u16,
 }
 
-pub async fn handle_water_zone(
+pub async fn handle_message(
     current_task_handle: &mut Option<AbortHandle>,
     config: &config::Configuration,
     _topic: &str,

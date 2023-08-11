@@ -2,7 +2,7 @@ use crate::config;
 use crate::driver;
 use futures::{future::abortable, stream::AbortHandle};
 
-pub async fn handle_start_plan(
+pub async fn handle_message(
     current_task_handle: &mut Option<AbortHandle>,
     config: &config::Configuration,
     topic: &str,

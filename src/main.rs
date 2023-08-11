@@ -45,7 +45,7 @@ async fn main() {
 
         match topic {
             t if t.starts_with("sprinklers/start_plan/") => {
-                handlers::start_plan::handle_start_plan(
+                handlers::start_plan::handle_message(
                     &mut current_task_handle,
                     &config,
                     &topic,
@@ -54,7 +54,7 @@ async fn main() {
                 .await
             }
             t if t.starts_with("sprinklers/water_zone/") => {
-                handlers::water_zone::handle_water_zone(
+                handlers::water_zone::handle_message(
                     &mut current_task_handle,
                     &config,
                     topic,
@@ -63,7 +63,7 @@ async fn main() {
                 .await
             }
             "sprinklers/stop" => {
-                handlers::stop_plan::handle_stop_plan(
+                handlers::stop_plan::handle_message(
                     &mut current_task_handle,
                     &config,
                     &topic,
