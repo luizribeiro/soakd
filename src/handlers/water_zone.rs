@@ -1,0 +1,25 @@
+use crate::activate_zone;
+use crate::config;
+use futures::stream::AbortHandle;
+use serde::{Deserialize, Serialize};
+
+#[derive(Serialize, Deserialize, Clone)]
+struct WaterZonePayload {
+    duration: u16,
+}
+
+pub async fn handle_water_zone(
+    current_task_handle: &mut Option<AbortHandle>,
+    config: &config::Configuration,
+    _topic: &str,
+    payload: &str,
+) {
+    if current_task_handle.is_some() {
+        println!("Already have an ongoing sprinklers task. Ignoring.");
+    }
+
+    let zone_number: u8 = payload.parse().unwrap();
+    let zone_config = config.zones.iter().find(|z| z.zone == zone_number).unwrap();
+    let payload: WaterZonePayload = serde_json::from_str(&payload).unwrap();
+    activate_zone(&config.pump, &zone_config, payload.duration.into()).await;
+}

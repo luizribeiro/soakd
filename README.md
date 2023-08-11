@@ -6,7 +6,6 @@ written in Rust.
 
 ## TODOs
 
-* Split handlers into their own modules
 * Allow for plug and play drivers
 * Implement a dummy driver for tests
 * Implement a driver for 74HC595
