@@ -25,7 +25,11 @@ fn set_cleanup_on_exit(config: &config::Configuration) {
 #[tokio::main]
 async fn main() {
     // TODO: better error handling on this entire method
-    let config = config::read_config("config.yaml").unwrap_or_else(|e| {
+    // read config either from the first parameter of the program or config.yaml by default
+    let config_file = std::env::args()
+        .nth(1)
+        .unwrap_or(String::from("config.yaml"));
+    let config = config::read_config(config_file).unwrap_or_else(|e| {
         println!("Error reading config: {:?}", e);
         process::exit(1);
     });
