@@ -71,7 +71,9 @@ async fn main() {
                 )
                 .await
             }
-            _ => {}
+            _ => {
+                println!("Message on unexpected topic: {}", topic);
+            }
         }
     }
 }
