@@ -1,5 +1,8 @@
 use std::{panic, process};
 
+#[macro_use]
+extern crate lazy_static;
+
 mod config;
 mod driver;
 mod err;
