@@ -24,7 +24,7 @@ pub struct PumpConfig {
 
 #[derive(Deserialize, Clone)]
 pub struct ZoneConfig {
-    pub zone: u8,
+    pub zone: String,
     pub pin: u8,
 }
 
@@ -36,7 +36,7 @@ pub struct SprinklerPlan {
 
 #[derive(Deserialize, Clone)]
 pub struct SprinklerZone {
-    pub zone: u8,
+    pub zone: String,
     pub duration: u16,
 }
 

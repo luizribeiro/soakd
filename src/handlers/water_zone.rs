@@ -18,7 +18,8 @@ pub async fn handle_message(
         println!("Already have an ongoing sprinklers task. Ignoring.");
     }
 
-    let zone_number: u8 = payload.parse().unwrap();
+    // FIXME: this is totally wrong. damn you chatgpt
+    let zone_number: String = payload.parse().unwrap();
     let zone_config = config.zones.iter().find(|z| z.zone == zone_number).unwrap();
     let payload: WaterZonePayload = serde_json::from_str(&payload).unwrap();
     driver::activate_zone(&config.pump, &zone_config, payload.duration.into()).await;

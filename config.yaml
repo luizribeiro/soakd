@@ -1,24 +1,25 @@
+---
 mqtt:
-  broker: "localhost"
+  broker: localhost
   port: 1883
 pump:
-  pin: 10
+  pin: 7
   delay: 5
 zones:
-  - zone: 1
-    pin: 11
-  - zone: 2
-    pin: 12
+  - zone: Front Yard
+    pin: 0
+  - zone: Backyard
+    pin: 1
 plans:
-  - name: "Morning Watering"
+  - name: Morning Watering
     zone_durations:
-      - zone: 1
+      - zone: Front Yard
         duration: 30
-      - zone: 2
+      - zone: Backyard
         duration: 45
-  - name: "Evening Watering"
+  - name: Evening Watering
     zone_durations:
-      - zone: 1
+      - zone: Front Yard
         duration: 20
-      - zone: 2
+      - zone: Backyard
         duration: 35
