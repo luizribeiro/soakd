@@ -6,6 +6,10 @@ written in Rust.
 
 ## TODOs
 
+* Proper stop procedure *(turn pump off first)
+* Command for running a given zone for a specified duration
+* Command for fetching current state and integration with Home Assistant
+* Better logs
 * Allow for plug and play drivers
 * Implement a dummy driver for tests
 * Implement a driver for 74HC595
