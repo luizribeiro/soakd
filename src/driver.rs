@@ -1,11 +1,11 @@
 use crate::config;
-use rust_gpiozero::OutputDevice;
+use gpiochip as gpio;
 use std::time::Duration;
 
-const PIN_SR_LATCH: u8 = 3;
-const PIN_SR_DATA: u8 = 21;
-const PIN_SR_CLOCK: u8 = 22;
-const PIN_SR_NOE: u8 = 1;
+const PIN_SR_LATCH: u32 = 3;
+const PIN_SR_DATA: u32 = 21;
+const PIN_SR_CLOCK: u32 = 22;
+const PIN_SR_NOE: u32 = 1;
 
 pub fn shutoff_all_valves(_config: &config::Configuration) {
     set_state([false; 16]);
@@ -41,28 +41,33 @@ pub async fn activate_zone(
 }
 
 fn set_state(pins: [bool; 16]) {
-    let mut latch_pin = OutputDevice::new(PIN_SR_LATCH);
-    let mut clock_pin = OutputDevice::new(PIN_SR_CLOCK);
-    let mut data_pin = OutputDevice::new(PIN_SR_DATA);
-    let mut noe_pin = OutputDevice::new(PIN_SR_NOE);
+    let chip = gpio::GpioChip::new("/dev/gpiochip0").unwrap();
+    let latch_pin = chip
+        .request("sr_latch", gpio::RequestFlags::OUTPUT, PIN_SR_LATCH, 0)
+        .unwrap();
+    let clock_pin = chip
+        .request("sr_clock", gpio::RequestFlags::OUTPUT, PIN_SR_CLOCK, 0)
+        .unwrap();
+    let data_pin = chip
+        .request("sr_data", gpio::RequestFlags::OUTPUT, PIN_SR_DATA, 0)
+        .unwrap();
+    let noe_pin = chip
+        .request("sr_noe", gpio::RequestFlags::OUTPUT, PIN_SR_NOE, 0)
+        .unwrap();
 
     // turn off the latch pin
-    latch_pin.off();
-    clock_pin.off();
+    latch_pin.set(0).unwrap();
+    clock_pin.set(0).unwrap();
 
     for i in 0..16 {
-        clock_pin.off();
-        if pins[i] {
-            data_pin.on();
-        } else {
-            data_pin.off();
-        }
-        clock_pin.on();
+        clock_pin.set(0).unwrap();
+        data_pin.set(pins[i].into()).unwrap();
+        clock_pin.set(1).unwrap();
     }
 
     // latch the outputs
-    latch_pin.on();
+    latch_pin.set(1).unwrap();
 
     // turn off the NOT enable pin (turns on outputs)
-    noe_pin.off();
+    noe_pin.set(0).unwrap();
 }
