@@ -5,6 +5,7 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Clone)]
 struct WaterZonePayload {
+    zone: String,
     duration: u16,
 }
 
@@ -18,9 +19,11 @@ pub async fn handle_message(
         println!("Already have an ongoing sprinklers task. Ignoring.");
     }
 
-    // FIXME: this is totally wrong. damn you chatgpt
-    let zone_number: String = payload.parse().unwrap();
-    let zone_config = config.zones.iter().find(|z| z.zone == zone_number).unwrap();
     let payload: WaterZonePayload = serde_json::from_str(&payload).unwrap();
+    let zone_config = config
+        .zones
+        .iter()
+        .find(|z| z.zone == payload.zone)
+        .unwrap();
     driver::activate_zone(&config.pump, &zone_config, payload.duration.into()).await;
 }
