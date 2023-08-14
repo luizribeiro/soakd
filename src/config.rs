@@ -40,18 +40,6 @@ pub struct SprinklerZone {
     pub duration: u16,
 }
 
-impl From<serde_yaml::Error> for SprinklerError {
-    fn from(error: serde_yaml::Error) -> Self {
-        SprinklerError::YAML(error)
-    }
-}
-
-impl From<std::io::Error> for SprinklerError {
-    fn from(error: std::io::Error) -> Self {
-        SprinklerError::IO(error)
-    }
-}
-
 pub fn read_config<P: AsRef<Path>>(path: P) -> Result<Configuration, SprinklerError> {
     let mut file = fs::File::open(path)?;
     let mut contents = String::new();
