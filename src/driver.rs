@@ -25,6 +25,7 @@ lazy_static! {
         .unwrap();
     static ref STATE: Mutex<[bool; NUM_ZONES]> = Mutex::new([false; NUM_ZONES]);
 }
+
 pub fn shutoff_all_valves(_config: &config::Configuration) {
     set_state([false; NUM_ZONES]);
 }
