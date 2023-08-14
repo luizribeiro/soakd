@@ -1,5 +1,6 @@
 use crate::config;
 use gpiochip as gpio;
+use std::sync::Mutex;
 use std::time::Duration;
 
 const NUM_ZONES: usize = 8;
@@ -22,8 +23,8 @@ lazy_static! {
     static ref NOE_PIN: gpiochip::GpioHandle = CHIP
         .request("sr_noe", gpio::RequestFlags::OUTPUT, PIN_SR_NOE, 0)
         .unwrap();
+    static ref STATE: Mutex<[bool; NUM_ZONES]> = Mutex::new([false; NUM_ZONES]);
 }
-
 pub fn shutoff_all_valves(_config: &config::Configuration) {
     set_state([false; NUM_ZONES]);
 }
@@ -67,4 +68,8 @@ fn set_state(pins: [bool; NUM_ZONES]) {
     }
     LATCH_PIN.set(1).unwrap();
     NOE_PIN.set(0).unwrap();
+    let mut state = STATE.lock().unwrap();
+    for i in 0..NUM_ZONES {
+        state[i] = pins[i];
+    }
 }
