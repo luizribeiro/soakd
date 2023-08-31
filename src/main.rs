@@ -25,6 +25,22 @@ fn set_cleanup_on_exit(config: &config::Configuration) {
     });
 }
 
+fn topic_matches(topic: &str, pattern: &str) -> bool {
+    let mut topic_parts = topic.split('/');
+    let mut pattern_parts = pattern.split('/');
+    loop {
+        let topic_part = topic_parts.next();
+        let pattern_part = pattern_parts.next();
+        match (topic_part, pattern_part) {
+            (Some(_), Some("+")) => continue,
+            (Some(_), Some("#")) => return true,
+            (Some(t), Some(p)) if t == p => continue,
+            (None, None) => return true,
+            _ => return false,
+        }
+    }
+}
+
 #[tokio::main]
 async fn main() {
     // TODO: better error handling on this entire method
@@ -51,7 +67,7 @@ async fn main() {
         println!("Received message: {} -> {}", topic, payload_str);
 
         match topic {
-            t if t.starts_with("sprinklers/start_plan/") => {
+            t if topic_matches(t, "+/start_plan/+") => {
                 handlers::start_plan::handle_message(
                     &mut current_task_handle,
                     &config,
@@ -60,7 +76,7 @@ async fn main() {
                 )
                 .await
             }
-            t if t.starts_with("sprinklers/water_zone/") => {
+            t if topic_matches(t, "+/water_zone/#") => {
                 handlers::water_zone::handle_message(
                     &mut current_task_handle,
                     &config,
@@ -69,7 +85,7 @@ async fn main() {
                 )
                 .await
             }
-            "sprinklers/stop" => {
+            t if topic_matches(t, "+/stop") => {
                 handlers::stop_plan::handle_message(
                     &mut current_task_handle,
                     &config,

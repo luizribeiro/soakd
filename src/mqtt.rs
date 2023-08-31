@@ -24,7 +24,8 @@ impl MQTTClient {
 
         client.connect(conn_opts).await?;
 
-        client.subscribe("sprinklers/#", 1).await?;
+        let topic = format!("{}/#", config.mqtt.topic_prefix);
+        client.subscribe(topic, 1).await?;
 
         Ok(Self { client, stream })
     }

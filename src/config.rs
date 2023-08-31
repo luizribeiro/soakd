@@ -14,6 +14,12 @@ pub struct Configuration {
 pub struct MQTTConfig {
     pub broker: String,
     pub port: u16,
+    #[serde(default = "default_topic_prefix")]
+    pub topic_prefix: String,
+}
+
+fn default_topic_prefix() -> String {
+    String::from("sprinklers")
 }
 
 #[derive(Deserialize, Clone, Copy)]
