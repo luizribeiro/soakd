@@ -13,3 +13,4 @@ futures = "0.3.28"
 ctrlc = { version = "3.4.0", features = ["termination"] }
 gpiochip = "0.1.1"
 lazy_static = "1.4.0"
+async-trait = "0.1.73"
