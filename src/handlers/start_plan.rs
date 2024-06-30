@@ -39,7 +39,11 @@ async fn start_plan(config: &config::Configuration, plan: &config::SprinklerPlan
             "Activating zone {} for {} minutes",
             zone_config.zone, zone_duration.duration
         );
-        driver::activate_zone(&config.pump, &zone_config, zone_duration.duration.into()).await;
+        driver::get_driver()
+            .lock()
+            .await
+            .activate_zone(&config.pump, &zone_config, zone_duration.duration.into())
+            .await;
         println!("Done watering zone {}", zone_config.zone);
     }
 }

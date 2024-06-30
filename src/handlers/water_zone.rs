@@ -25,5 +25,9 @@ pub async fn handle_message(
         .iter()
         .find(|z| z.zone == payload.zone)
         .unwrap();
-    driver::activate_zone(&config.pump, &zone_config, payload.duration.into()).await;
+    driver::get_driver()
+        .lock()
+        .await
+        .activate_zone(&config.pump, &zone_config, payload.duration.into())
+        .await;
 }

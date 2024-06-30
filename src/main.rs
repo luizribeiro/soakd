@@ -9,18 +9,30 @@ mod err;
 mod handlers;
 mod mqtt;
 
-fn set_cleanup_on_exit(config: &config::Configuration) {
-    let cfg = config.clone();
+fn await_synchronously<F: std::future::Future>(f: F) -> F::Output {
+    tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .build()
+        .unwrap()
+        .block_on(f)
+}
+
+fn synchronous_shutdown() {
+    await_synchronously(async {
+        driver::get_driver().lock().await.shutoff_all_valves();
+    });
+}
+
+fn set_cleanup_on_exit() {
     let default_hook = panic::take_hook();
     panic::set_hook(Box::new(move |panic_info| {
         default_hook(panic_info);
-        driver::shutoff_all_valves(&cfg);
+        synchronous_shutdown();
         process::exit(1);
     }));
 
-    let cfg = config.clone();
     let _ = ctrlc::set_handler(move || {
-        driver::shutoff_all_valves(&cfg);
+        synchronous_shutdown();
         process::exit(0);
     });
 }
@@ -53,7 +65,7 @@ async fn main() {
         process::exit(1);
     });
 
-    set_cleanup_on_exit(&config);
+    set_cleanup_on_exit();
 
     let mut mqtt_client = mqtt::MQTTClient::new(&config).await.unwrap();
 
