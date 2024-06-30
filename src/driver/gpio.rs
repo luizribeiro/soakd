@@ -1,48 +1,14 @@
 use crate::config;
+use crate::driver::Driver;
 use async_trait::async_trait;
 use gpiochip as gpio;
 use std::time::Duration;
-use tokio::sync::Mutex;
 
 const NUM_ZONES: usize = 8;
 const PIN_SR_LATCH: u32 = 22;
 const PIN_SR_DATA: u32 = 27;
 const PIN_SR_CLOCK: u32 = 4;
 const PIN_SR_NOE: u32 = 17;
-
-#[async_trait]
-pub trait Driver {
-    fn shutoff_all_valves(&mut self);
-    async fn activate_zone(
-        &mut self,
-        pump_config: &config::PumpConfig,
-        zone: &config::ZoneConfig,
-        duration: u64,
-    );
-}
-
-pub struct NoopDriver {}
-
-#[async_trait]
-impl Driver for NoopDriver {
-    fn shutoff_all_valves(&mut self) {}
-    async fn activate_zone(
-        &mut self,
-        _pump_config: &config::PumpConfig,
-        _zone: &config::ZoneConfig,
-        _duration: u64,
-    ) {
-    }
-}
-
-lazy_static! {
-    //static ref DRIVER: Mutex<Box<dyn Driver + Send>> = Mutex::new(Box::new(NoopDriver {}));
-    static ref DRIVER: Mutex<Box<dyn Driver + Send>> = Mutex::new(Box::new(GpioDriver::new()));
-}
-
-pub fn get_driver() -> &'static Mutex<Box<dyn Driver + Send>> {
-    &DRIVER
-}
 
 pub struct GpioDriver {
     latch_pin: gpiochip::GpioHandle,
@@ -53,7 +19,7 @@ pub struct GpioDriver {
 }
 
 impl GpioDriver {
-    fn new() -> Self {
+    pub fn new() -> Self {
         let chip = gpio::GpioChip::new("/dev/gpiochip0").unwrap();
         let latch_pin = chip
             .request("sr_latch", gpio::RequestFlags::OUTPUT, PIN_SR_LATCH, 0)
