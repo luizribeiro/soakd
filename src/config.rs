@@ -8,6 +8,15 @@ pub struct Configuration {
     pub pump: PumpConfig,
     pub zones: Vec<ZoneConfig>,
     pub plans: Vec<SprinklerPlan>,
+    #[serde(default = "default_driver")]
+    pub driver: Driver,
+}
+
+#[derive(Deserialize, Clone)]
+#[serde(rename_all = "lowercase")]
+pub enum Driver {
+    Noop,
+    Gpio,
 }
 
 #[derive(Deserialize, Clone)]
@@ -26,6 +35,10 @@ fn default_topic_prefix() -> String {
 
 fn default_client_id() -> String {
     String::from("soakd")
+}
+
+fn default_driver() -> Driver {
+    Driver::Gpio
 }
 
 #[derive(Deserialize, Clone, Copy)]

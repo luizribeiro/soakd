@@ -49,6 +49,7 @@ async fn main() {
         process::exit(1);
     });
 
+    driver::init_driver(&config).await;
     set_cleanup_on_exit();
 
     let mut mqtt_client = mqtt::MQTTClient::new(&config).await.unwrap();

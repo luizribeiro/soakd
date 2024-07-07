@@ -4,6 +4,7 @@ mqtt:
   port: 1883
   topic_prefix: "soakd_test"
   client_id: "soakd_test"
+driver: noop
 pump:
   pin: 7
   delay: 5
