@@ -1,7 +1,9 @@
 use crate::config;
 use crate::driver;
+use crate::handlers::mqtt_handler;
 use futures::stream::AbortHandle;
 
+#[mqtt_handler(topic = "+/stop")]
 pub async fn handle_message(
     current_task_handle: &mut Option<AbortHandle>,
     _config: &config::Configuration,

@@ -1,7 +1,6 @@
 use crate::config;
 use futures::stream::AbortHandle;
 use macros::mqtt_handler;
-use regex::Regex;
 use std::future::Future;
 use std::pin::Pin;
 use std::sync::Mutex;
@@ -19,35 +18,50 @@ type MQTTHandlerFn = dyn for<'a> Fn(
     + Sync
     + Send;
 
+struct MQTTHandler {
+    pattern: String,
+    handler: Box<MQTTHandlerFn>,
+}
+
 lazy_static! {
-    static ref HANDLERS: Mutex<Vec<(Regex, Box<MQTTHandlerFn>)>> = Mutex::new(Vec::new());
+    static ref HANDLERS: Mutex<Vec<MQTTHandler>> = Mutex::new(Vec::new());
 }
 
-#[mqtt_handler(topic = "foo/bar")]
-async fn foo_bar_handler(
-    _current_task_handle: &mut Option<AbortHandle>,
-    _config: &config::Configuration,
-    topic: &str,
-    payload: &str,
-) {
-    println!("foo_bar_handler: topic: {}, payload: {}", topic, payload);
-}
-
-fn register_handler(topic: &str, handler: Box<MQTTHandlerFn>) {
+fn register_handler(pattern: &str, handler: Box<MQTTHandlerFn>) {
     let mut handlers = HANDLERS.lock().unwrap();
-    handlers.push((Regex::new(topic).unwrap(), Box::new(handler)));
+    handlers.push(MQTTHandler {
+        pattern: pattern.to_string(),
+        handler,
+    });
 }
 
-async fn handle_message(
+fn topic_matches(topic: &str, pattern: &str) -> bool {
+    let mut topic_parts = topic.split('/');
+    let mut pattern_parts = pattern.split('/');
+    loop {
+        let topic_part = topic_parts.next();
+        let pattern_part = pattern_parts.next();
+        match (topic_part, pattern_part) {
+            (Some(_), Some("+")) => continue,
+            (Some(_), Some("#")) => return true,
+            (Some(t), Some(p)) if t == p => continue,
+            (None, None) => return true,
+            _ => return false,
+        }
+    }
+}
+
+pub async fn handle_message(
     current_task_handle: &mut Option<AbortHandle>,
     config: &config::Configuration,
     topic: &str,
     payload: &str,
 ) {
     let handlers = HANDLERS.lock().unwrap();
-    for (regex, handler) in handlers.iter() {
-        if regex.is_match(topic) {
-            handler(current_task_handle, config, topic, payload).await;
+    for handler in handlers.iter() {
+        if topic_matches(topic, &handler.pattern) {
+            return (handler.handler)(current_task_handle, config, topic, payload).await;
         }
     }
+    println!("Message on unexpected topic: {}", topic);
 }

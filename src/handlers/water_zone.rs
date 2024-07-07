@@ -1,5 +1,6 @@
 use crate::config;
 use crate::driver;
+use crate::handlers::mqtt_handler;
 use futures::stream::AbortHandle;
 use serde::{Deserialize, Serialize};
 
@@ -9,6 +10,7 @@ struct WaterZonePayload {
     duration: u16,
 }
 
+#[mqtt_handler(topic = "+/water_zone/#")]
 pub async fn handle_message(
     current_task_handle: &mut Option<AbortHandle>,
     config: &config::Configuration,
