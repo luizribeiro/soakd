@@ -30,7 +30,13 @@ pub fn mqtt_handler(attr: TokenStream, item: TokenStream) -> TokenStream {
 
         #[ctor::ctor]
         fn #register_fn_name() {
-            crate::handlers::register_handler(#topic, #fn_name);
+            crate::handlers::register_handler(
+                #topic,
+                Box::new(
+                    move |current_task_handle, config, topic, payload|
+                        Box::pin(#fn_name(current_task_handle, config, topic, payload)),
+                ),
+            );
         }
     };
 
