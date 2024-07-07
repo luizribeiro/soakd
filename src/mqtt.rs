@@ -11,7 +11,7 @@ impl MQTTClient {
     pub async fn new(config: &config::Configuration) -> Result<Self, std::io::Error> {
         let create_opts = paho_mqtt::CreateOptionsBuilder::new()
             .server_uri(format!("tcp://{}:{}", config.mqtt.broker, config.mqtt.port))
-            .client_id("sprinkler_controller")
+            .client_id(config.mqtt.client_id.to_string())
             .finalize();
 
         let mut client = paho_mqtt::AsyncClient::new(create_opts)?;

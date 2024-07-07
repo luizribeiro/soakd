@@ -16,10 +16,16 @@ pub struct MQTTConfig {
     pub port: u16,
     #[serde(default = "default_topic_prefix")]
     pub topic_prefix: String,
+    #[serde(default = "default_client_id")]
+    pub client_id: String,
 }
 
 fn default_topic_prefix() -> String {
     String::from("sprinklers")
+}
+
+fn default_client_id() -> String {
+    String::from("soakd")
 }
 
 #[derive(Deserialize, Clone, Copy)]

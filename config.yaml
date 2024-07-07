@@ -3,6 +3,7 @@ mqtt:
   broker: localhost
   port: 1883
   topic_prefix: "soakd_test"
+  client_id: "soakd_test"
 pump:
   pin: 7
   delay: 5
