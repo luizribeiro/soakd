@@ -4,6 +4,8 @@ use async_trait::async_trait;
 use gpiochip as gpio;
 use std::time::Duration;
 
+// Number of outputs on the 74HC595 shift register
+// This includes both zone valves and pump control
 const NUM_ZONES: usize = 8;
 const PIN_SR_LATCH: u32 = 22;
 const PIN_SR_DATA: u32 = 27;
@@ -79,14 +81,24 @@ impl Driver for GpioDriver {
 
         // turn on pump after a bit
         tokio::time::sleep(Duration::from_secs(pump_config.delay)).await;
-        pins[pump_config.pin as usize] = true;
-        self.set_state(pins);
+        if (pump_config.pin as usize) < NUM_ZONES {
+            pins[pump_config.pin as usize] = true;
+            self.set_state(pins);
+        } else {
+            log::warn!(
+                "Pump pin {} is outside valid range (0-{}). Pump will not be activated.",
+                pump_config.pin,
+                NUM_ZONES - 1
+            );
+        }
 
         // water zone for duration
         tokio::time::sleep(Duration::from_secs(duration * 60 - 2 * pump_config.delay)).await;
 
         // turn off pump
-        pins[pump_config.pin as usize] = false;
+        if (pump_config.pin as usize) < NUM_ZONES {
+            pins[pump_config.pin as usize] = false;
+        }
         self.set_state(pins);
 
         // turn off zone valve
