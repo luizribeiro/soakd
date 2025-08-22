@@ -84,12 +84,6 @@ impl Driver for GpioDriver {
         if (pump_config.pin as usize) < NUM_ZONES {
             pins[pump_config.pin as usize] = true;
             self.set_state(pins);
-        } else {
-            log::warn!(
-                "Pump pin {} is outside valid range (0-{}). Pump will not be activated.",
-                pump_config.pin,
-                NUM_ZONES - 1
-            );
         }
 
         // water zone for duration
