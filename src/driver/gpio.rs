@@ -3,6 +3,7 @@ use crate::driver::Driver;
 use async_trait::async_trait;
 use gpiochip as gpio;
 use std::time::Duration;
+use std::thread;
 
 // Number of outputs on the 74HC595 shift register
 // This includes both zone valves and pump control
@@ -11,6 +12,9 @@ const PIN_SR_LATCH: u32 = 22;
 const PIN_SR_DATA: u32 = 27;
 const PIN_SR_CLOCK: u32 = 4;
 const PIN_SR_NOE: u32 = 17;
+
+// Timing delay for 74HC595 setup/hold times
+const SHIFT_REGISTER_DELAY_NS: u64 = 100;
 
 pub struct GpioDriver {
     latch_pin: gpiochip::GpioHandle,
@@ -46,12 +50,17 @@ impl GpioDriver {
     }
 
     fn set_state(&mut self, pins: [bool; NUM_ZONES]) {
+        let delay = || thread::sleep(Duration::from_nanos(SHIFT_REGISTER_DELAY_NS));
+        
         self.noe_pin.set(1).unwrap();
         self.latch_pin.set(0).unwrap();
         for i in (0..NUM_ZONES).rev() {
             self.clock_pin.set(0).unwrap();
+            delay(); // Setup time before data
             self.data_pin.set(pins[i].into()).unwrap();
+            delay(); // Hold time after data
             self.clock_pin.set(1).unwrap();
+            delay(); // Clock high time
         }
         self.latch_pin.set(1).unwrap();
         self.noe_pin.set(0).unwrap();
