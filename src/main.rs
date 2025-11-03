@@ -9,18 +9,16 @@ mod err;
 mod handlers;
 mod mqtt;
 
-fn await_synchronously<F: std::future::Future>(f: F) -> F::Output {
-    tokio::runtime::Builder::new_current_thread()
-        .enable_all()
-        .build()
-        .unwrap()
-        .block_on(f)
-}
-
 fn synchronous_shutdown() {
-    await_synchronously(async {
-        driver::get_driver().lock().await.shutoff_all_valves();
-    });
+    // Use try_lock to avoid deadlock if panic occurs while driver mutex is held
+    match driver::get_driver().try_lock() {
+        Ok(mut driver) => {
+            driver.shutoff_all_valves();
+        }
+        Err(_) => {
+            eprintln!("Warning: Could not acquire driver lock during shutdown. Mutex may be poisoned or held by panicking thread.");
+        }
+    }
 }
 
 fn set_cleanup_on_exit() {
