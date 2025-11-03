@@ -1,7 +1,7 @@
 use crate::config;
 use crate::driver;
 use crate::handlers::mqtt_handler;
-use futures::stream::AbortHandle;
+use futures::{future::abortable, stream::AbortHandle};
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Clone)]
@@ -19,6 +19,7 @@ pub async fn handle_message(
 ) {
     if current_task_handle.is_some() {
         println!("Already have an ongoing sprinklers task. Ignoring.");
+        return;
     }
 
     let payload: WaterZonePayload = serde_json::from_str(&payload).unwrap();
@@ -26,10 +27,22 @@ pub async fn handle_message(
         .zones
         .iter()
         .find(|z| z.zone == payload.zone)
-        .unwrap();
-    driver::get_driver()
-        .lock()
-        .await
-        .activate_zone(&config.pump, &zone_config, payload.duration.into())
-        .await;
+        .cloned();
+
+    if let Some(zone_config) = zone_config {
+        let config = config.clone();
+        let (task, handle) = abortable(async move {
+            println!("Activating zone {} for {} minutes", zone_config.zone, payload.duration);
+            driver::get_driver()
+                .lock()
+                .await
+                .activate_zone(&config.pump, &zone_config, payload.duration.into())
+                .await;
+            println!("Done watering zone {}", zone_config.zone);
+        });
+        tokio::spawn(task);
+        *current_task_handle = Some(handle);
+    } else {
+        println!("Unknown zone: {}", payload.zone);
+    }
 }
