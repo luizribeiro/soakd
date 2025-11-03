@@ -1,3 +1,5 @@
+#![allow(unexpected_cfgs)]
+
 use std::{panic, process};
 
 #[macro_use]
@@ -61,6 +63,6 @@ async fn main() {
 
         println!("Received message: {} -> {}", topic, payload_str);
 
-        handlers::handle_message(&mut current_task_handle, &config, &topic, &payload_str).await;
+        handlers::handle_message(&mut current_task_handle, &config, topic, &payload_str).await;
     }
 }

@@ -22,7 +22,7 @@ pub async fn handle_message(
         return;
     }
 
-    let payload: WaterZonePayload = serde_json::from_str(&payload).unwrap();
+    let payload: WaterZonePayload = serde_json::from_str(payload).unwrap();
     let zone_config = config
         .zones
         .iter()
