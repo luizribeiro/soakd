@@ -68,9 +68,7 @@ impl GpioDriver {
         }
         self.latch_pin.set(1).unwrap();
         self.noe_pin.set(0).unwrap();
-        for i in 0..NUM_ZONES {
-            self.state[i] = pins[i];
-        }
+        self.state.copy_from_slice(&pins);
     }
 }
 
