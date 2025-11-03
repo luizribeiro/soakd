@@ -3,6 +3,7 @@ use futures::StreamExt;
 use std::time::Duration;
 
 pub struct MQTTClient {
+    #[allow(dead_code)]
     pub client: paho_mqtt::AsyncClient,
     pub stream: paho_mqtt::AsyncReceiver<Option<paho_mqtt::Message>>,
 }
@@ -36,10 +37,7 @@ impl MQTTClient {
         if let Some(Some(message)) = msg_opt {
             Ok(message)
         } else {
-            Err(std::io::Error::new(
-                std::io::ErrorKind::Other,
-                "MQTT stream closed",
-            ))
+            Err(std::io::Error::other("MQTT stream closed"))
         }
     }
 }
