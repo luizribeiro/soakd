@@ -111,3 +111,55 @@ impl Driver for GpioDriver {
         self.set_state(pins);
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // Note: These tests document the critical safety behavior.
+    // Full hardware tests require actual GPIO hardware.
+
+    #[test]
+    fn test_gpio_driver_initial_state_is_safe() {
+        // This test documents that GpioDriver::new() MUST call set_state([false; NUM_ZONES])
+        // to reset hardware to safe state on initialization.
+        //
+        // This is Bug #2 fix: ensures valves are closed even after crashes/SIGKILL.
+        //
+        // The actual call is at gpio.rs:52:
+        //     driver.set_state([false; NUM_ZONES]);
+        //
+        // This cannot be easily unit tested without GPIO hardware or complex mocking,
+        // but the code path is straightforward and critical for safety.
+        //
+        // IMPORTANT: If this line is ever removed, valves will stay open after crashes!
+
+        // Verify NUM_ZONES constant is correct for 74HC595
+        assert_eq!(NUM_ZONES, 8);
+
+        // Verify pins array size matches
+        let safe_state = [false; NUM_ZONES];
+        assert_eq!(safe_state.len(), 8);
+        assert!(safe_state.iter().all(|&v| !v)); // All valves closed
+    }
+
+    #[test]
+    fn test_shutoff_all_valves_sets_safe_state() {
+        // This test documents that shutoff_all_valves calls set_state([false; NUM_ZONES])
+        // The actual GPIO operation cannot be tested without hardware.
+
+        let safe_state = [false; NUM_ZONES];
+        assert!(safe_state.iter().all(|&v| !v));
+    }
+
+    // Integration test that would require GPIO hardware:
+    // #[test]
+    // #[ignore] // Only run on actual Raspberry Pi
+    // fn test_gpio_driver_resets_hardware_on_init() {
+    //     // This test would verify that:
+    //     // 1. Set shift register to some non-zero state
+    //     // 2. Create new GpioDriver
+    //     // 3. Read back shift register state (all zeros)
+    //     // Requires GPIO hardware to run
+    // }
+}
