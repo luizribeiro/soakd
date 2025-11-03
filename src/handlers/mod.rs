@@ -51,6 +51,7 @@ fn topic_matches(topic: &str, pattern: &str) -> bool {
     }
 }
 
+#[allow(clippy::await_holding_lock)]
 pub async fn handle_message(
     current_task_handle: &mut Option<AbortHandle>,
     config: &config::Configuration,
