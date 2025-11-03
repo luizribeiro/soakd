@@ -40,13 +40,17 @@ impl GpioDriver {
             .request("sr_noe", gpio::RequestFlags::OUTPUT, PIN_SR_NOE, 0)
             .unwrap();
         let state = [false; NUM_ZONES];
-        Self {
+        let mut driver = Self {
             latch_pin,
             clock_pin,
             data_pin,
             noe_pin,
             state,
-        }
+        };
+        // Reset hardware to safe state (all valves closed) on initialization
+        // This ensures valves are closed even if previous instance crashed/killed
+        driver.set_state([false; NUM_ZONES]);
+        driver
     }
 
     fn set_state(&mut self, pins: [bool; NUM_ZONES]) {
