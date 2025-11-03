@@ -17,3 +17,7 @@ async-trait = "0.1.73"
 macros = { path = "./macros" }
 regex = "1.10.5"
 ctor = "0.2.8"
+
+[dev-dependencies]
+tokio-test = "0.4"
+mockall = "0.12"
